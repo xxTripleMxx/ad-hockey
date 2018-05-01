@@ -7,4 +7,5 @@ gy = "2017"
 G = Game(game_no=gn, game_type=gt,
          season_year=gy)
 
-G.players.to_dict()
+# Keep working on timedelta for penalties
+G.events.to_dict(attributes='event', filts='penalty')

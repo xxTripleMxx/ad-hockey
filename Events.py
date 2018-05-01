@@ -1,4 +1,5 @@
 import math
+from datetime import timedelta as td
 
 class Event(object):
 
@@ -107,10 +108,9 @@ class Penalty(Event):
 
     def __init__(self, attribute_dictionary, json_data, ind):
         super().__init__(attribute_dictionary, json_data, ind)
-        self._set_specific(json_data, ind)
-
-    def _set_specific(self, json_data, ind):
         self.type = json_data[ind]['result']['secondaryType'].lower()
+        self.length_seconds = td(minutes=int(json_data[ind]['result']['penaltyMinutes']))
+        
 
 
 class Injury(Event):

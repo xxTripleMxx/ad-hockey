@@ -1,5 +1,6 @@
 import json
 import urllib
+from datetime import datetime as dt
 from Players import Goalie, Skater
 from Events import *
 from Summaries import Summary
@@ -21,13 +22,13 @@ class Game(object):
         self.events_exclude = ["game scheduled", "period ready", "period start",
                                "period end", "period official", "game end",
                                "shootout complete", "game official"]
-
+        # Summary object of many summary stats from the game
+        self.summary = Summary(self.json_data)
         # Container of all players in the game
         self.players = Container(list(self._populate_players()))
         # Container of all events in the game
         self.events = Container(list(self._populate_events()))
-        # Summary object of many summary stats from the game
-        self.summary = Summary(self.json_data)
+        
 
     def _set_json(self):
         '''Combine provided game no. season no. and gametype from instantiation
@@ -89,7 +90,10 @@ class Game(object):
             the corresponding object with the event data.'''
             event = pl[n]['result']['event'].lower()
             period = pl[n]['about']['period']
-            time = pl[n]['about']['periodTime']
+            time = dt.strptime(pl[n]['about']['periodTime'], '%H:%M')
+            time = time.replace(year = self.summary.start_time.year,
+                                month = self.summary.start_time.month,
+                                day = self.summary.start_time.day)
 
             '''checks retrieved event string against the exclusions list
             in Game.exclude_list'''
