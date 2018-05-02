@@ -1,4 +1,6 @@
 import re
+import datetime as dt
+
 
 class Player(object):
 
@@ -33,15 +35,18 @@ class Skater(Player):
                          plyr_career_json, plyr_game_json)
 
         json = plyr_game_json[plyr_id]['stats']['skaterStats']
-
-        self.toi = json['timeOnIce']
+        
+        toi = json['timeOnIce'].split(':')
+        toi = dt.timedelta(minutes=int(toi[0]), seconds=int(toi[1]))
+        self.toi = toi.total_seconds()
         self.shots = json['shots']
         self.assists = json['assists']
         self.goals = json['goals']
         self.hits = json['hits']
         self.pp_goals = json['powerPlayGoals']
         self.pp_assists = json['powerPlayAssists']
-        self.penalty_min = json['penaltyMinutes']
+        pm = dt.timedelta(minutes=int(json['penaltyMinutes']))
+        self.penalty_time = pm.total_seconds()
         self.fo_wins = json['faceOffWins']
         self.fo_taken = json['faceoffTaken']
         self.takeaways = json['takeaways']
@@ -49,9 +54,15 @@ class Skater(Player):
         self.sh_goals = json['shortHandedGoals']
         self.sh_assists = json['shortHandedAssists']
         self.blocked = json['blocked']
-        self.e_toi = json['evenTimeOnIce']
-        self.pp_toi = json['powerPlayTimeOnIce']
-        self.sh_toi = json['shortHandedTimeOnIce']
+        e = json['evenTimeOnIce'].split(':')
+        e = dt.timedelta(minutes=int(e[0]), seconds=int(e[1]))
+        self.e_toi = e.total_seconds()
+        pp = json['powerPlayTimeOnIce'].split(':')
+        pp = dt.timedelta(minutes=int(pp[0]), seconds=int(pp[1]))
+        self.pp_toi = pp.total_seconds()
+        sh = json['shortHandedTimeOnIce'].split(':')
+        sh = dt.timedelta(minutes=int(sh[0]), seconds=int(sh[1]))
+        self.sh_toi = sh.total_seconds()
         self.id = plyr_id
 
 
@@ -63,8 +74,9 @@ class Goalie(Player):
                          plyr_career_json, plyr_game_json)
 
         gl = plyr_game_json[plyr_id]['stats']['goalieStats']
-
-        self.toi = gl['timeOnIce']
+        toi = gl['timeOnIce'].split(':')
+        toi = dt.timedelta(minutes=int(toi[0]), seconds=int(toi[1]))
+        self.toi = toi.total_seconds()
         self.shots = gl['shots']
         self.saves = gl['saves']
         self.pp_saves = gl['powerPlaySaves']

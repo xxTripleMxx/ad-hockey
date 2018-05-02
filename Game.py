@@ -1,6 +1,6 @@
 import json
 import urllib
-from datetime import datetime as dt
+from datetime import timedelta as td
 from Players import Goalie, Skater
 from Events import *
 from Summaries import Summary
@@ -22,6 +22,9 @@ class Game(object):
         self.events_exclude = ["game scheduled", "period ready", "period start",
                                "period end", "period official", "game end",
                                "shootout complete", "game official"]
+        self.teams = {'home': self.json_data['gameData']['teams']['home']['triCode'],
+                      'away': self.json_data['gameData']['teams']['away']['triCode']}
+        
         # Summary object of many summary stats from the game
         self.summary = Summary(self.json_data)
         # Container of all players in the game
@@ -90,10 +93,8 @@ class Game(object):
             the corresponding object with the event data.'''
             event = pl[n]['result']['event'].lower()
             period = pl[n]['about']['period']
-            time = dt.strptime(pl[n]['about']['periodTime'], '%H:%M')
-            time = time.replace(year = self.summary.start_time.year,
-                                month = self.summary.start_time.month,
-                                day = self.summary.start_time.day)
+            t = pl[n]['about']['periodTime'].split(':')
+            time = td(minutes=int(t[0]), seconds=int(t[1])).total_seconds()
 
             '''checks retrieved event string against the exclusions list
             in Game.exclude_list'''
@@ -138,10 +139,39 @@ class Game(object):
         sequential order with cnt. Then checks that event was properly
         instantiated and increments cnt upon confirmation, yielding
         newly classified event.'''
+        
+        '''Evaluates for penalty time and assigns a man advantage differential
+        to each event based one wether that event occurred while a penalty was
+        was active.'''
+        
+        
+        '''Use a mix of in and out scope elements to determine 
+        balance between teams regarding on ice players for each event'''
+        def man_advantage(ev):
+            if ev.event == 'penalty':
+                active_penalty[ev.team].append((ev.period, ev.time, ev.end_time))
+                man_count[ev.team] = 5 - len(active_penalty[ev.team])
+            elif 'team' in ev.__dict__:
+                if (len(active_penalty[ev.team]) > 0):
+                    for pen in active_penalty[ev.team]: 
+                        if ((ev.time > pen[1]) and
+                            (ev.time < pen[2]) and
+                            (ev.period == pen[0])):
+                            pass
+                        elif ev.time > pen[2]:
+                            active_penalty[ev.team].remove(pen) 
+                            man_count[ev.team] = 5 - len(active_penalty[ev.team])
+                opp_team = [x for x in man_count.keys() if x != ev.team].pop()
+                ev.poi = man_count[ev.team] - man_count[opp_team]
+            return ev
+        
         cnt = 0
+        man_count = {x: 5 for x in self.teams.values()}
+        active_penalty = {x: [] for x in self.teams.values()}
         for n in range(0, len(plays_list)):
             event = classify_event(plays_list, n)
             if isinstance(event, Event):
+                event = man_advantage(event)
                 cnt += 1
                 yield event
 
