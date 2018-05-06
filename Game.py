@@ -1,5 +1,6 @@
 import json
 import urllib
+import statistics as stat
 from datetime import timedelta as td
 from Players import Goalie, Skater
 from Events import *
@@ -17,13 +18,14 @@ class Game(object):
         self.game_args = {"game_no": str(game_no),
                           "game_type": str(game_type),
                           "season_year": str(season_year)}
+        self.game_id = str(season_year) + str(game_type) + str(game_no)
         self.json_data = self._set_json()
+        self.teams = {'home': self.json_data['gameData']['teams']['home']['triCode'],
+                      'away': self.json_data['gameData']['teams']['away']['triCode']}
         self.net_locations = self._net_x()
         self.events_exclude = ["game scheduled", "period ready", "period start",
                                "period end", "period official", "game end",
                                "shootout complete", "game official"]
-        self.teams = {'home': self.json_data['gameData']['teams']['home']['triCode'],
-                      'away': self.json_data['gameData']['teams']['away']['triCode']}
         
         # Summary object of many summary stats from the game
         self.summary = Summary(self.json_data)
@@ -42,6 +44,7 @@ class Game(object):
         full_url = str(url_start + self.game_args["season_year"] +
                        self.game_args["game_type"] +
                        self.game_args["game_no"] + url_end)
+        
         try:
             game_url = urllib.request.urlopen(full_url).read()
             game_json = json.loads(game_url)
@@ -52,9 +55,12 @@ class Game(object):
                 print("Accessing JSON feed at: " + full_url)
                 print("JSON feed for game " + self.game_args["game_no"] +
                       " validated!")
-
-                # set class attribute json_data to loaded data
-                return game_json
+                if len(game_json['liveData']['plays']['allPlays']) < 5:
+                    raise Exception("No live data available for game no. " +
+                                    self.game_args['game_no'])
+                else:
+                    # set class attribute json_data to loaded data
+                    return game_json
             else:
                 print(self.game_args["season_year"] +
                       self.game_args["game_type"] +
@@ -73,14 +79,28 @@ class Game(object):
         '''retrieves the json data pertaining to the corresponding side
         of the ice for each team's net throughout the game (left or right).
         Then assign's accurate x coordinates to each.'''
-        net_dict = {}
-        for p in self.json_data['liveData']['linescore']['periods']:
-            for loc in ['home', 'away']:
-                team = self.json_data['gameData']['teams'][loc]['abbreviation']
-                net_dict[team+str(p['num'])] = [89 if p[loc]['rinkSide']
-                                                == 'left' else -89][0]
-
+        
+        try:
+            net_dict = {}
+            for p in self.json_data['liveData']['linescore']['periods']:
+                for loc in ['home', 'away']:
+                    team = self.json_data['gameData']['teams'][loc]['abbreviation']
+                    net_dict[team+str(p['num'])] = [89 if p[loc]['rinkSide']
+                                                    == 'left' else -89][0]
+        
+        except KeyError:
+            net_dict = {x+str(n):[] for x in self.teams.values() for n in range(1,5)}
+            for x in self.json_data['liveData']['plays']['allPlays']:
+                try:
+                    if x['result']['event'].lower() == 'shot':
+                        net_dict[x['team']['triCode']+str(x['about']['period'])].append(int(x['coordinates']['x']))
+                except KeyError:
+                    pass
+            
+            net_dict = {t:stat.mean(nl) for t,nl in net_dict.items() if len(nl) > 0}
+            
         return net_dict
+        
 
     # Event Factory
     def _populate_events(self):
@@ -120,7 +140,8 @@ class Game(object):
 
             '''attribute dictionary used to instantiate correct event subobject
             '''
-            attributes = {'event': event, 'period': period, 'time': time}
+            attributes = {'event': event, 'period': period, 
+                          'time': time}
 
             for flt in range(0, 9):
                 if flt == 8:

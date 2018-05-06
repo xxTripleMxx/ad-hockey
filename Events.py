@@ -8,6 +8,8 @@ class Event(object):
         return getattr(cls, x)
 
     def __init__(self, attribute_dictionary, json_data, ind):
+        
+        self.event_id = ind
 
         for k, v in attribute_dictionary.items():
             setattr(self, k, v)
@@ -47,20 +49,25 @@ class OffensivePuck(Event):
             self.type = json_data[ind]['result']['secondaryType']
 
     def _dist_angle(self, net_positions):
-
-        if str(self.team)+str(self.period) in net_positions.keys():
-            tkey = self.team+str(self.period)
-            x_dist = net_positions[tkey] - self.x_coord
-            y_dist = self.y_coord
-
-            # set distance and angle of a shot
-            self.distance = round(math.hypot(y_dist, x_dist), 5)
-            self.angle = round(math.degrees(math.asin(y_dist /
-                                                      self.distance)), 5)
-        else:
+        
+        try:
+            if str(self.team)+str(self.period) in net_positions.keys():
+                tkey = self.team+str(self.period)
+                x_dist = net_positions[tkey] - self.x_coord
+                y_dist = self.y_coord
+    
+                # set distance and angle of a shot
+                self.distance = round(math.hypot(y_dist, x_dist), 5)
+                self.angle = round(math.degrees(math.asin(y_dist /
+                                                          self.distance)), 5)
+            else:
+                self.distance = float('nan')
+                self.angle = float('nan')
+                
+        except AttributeError:
+            # more warnings
             self.distance = float('nan')
             self.angle = float('nan')
-
 
 class DefensivePuck(Event):
 
@@ -110,8 +117,8 @@ class Penalty(Event):
     def __init__(self, attribute_dictionary, json_data, ind):
         super().__init__(attribute_dictionary, json_data, ind)
         self.type = json_data[ind]['result']['secondaryType'].lower()
-        l = td(minutes=int(json_data[ind]['result']['penaltyMinutes']))
-        self.length_seconds = l.total_seconds()
+        length = td(minutes=int(json_data[ind]['result']['penaltyMinutes']))
+        self.length_seconds = length.total_seconds()
         self.end_time = self.time + self.length_seconds
         
 class Injury(Event):

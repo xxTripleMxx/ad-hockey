@@ -5,8 +5,8 @@ class Summary(object):
     def __init__(self, json_data):
 
         time = json_data['gameData']['datetime']
-        self.start_time = dt.strptime(time['dateTime'], '%Y-%m-%dT%H:%M:%SZ')
-        self.end_time = dt.strptime(time['endDateTime'], '%Y-%m-%dT%H:%M:%SZ')
+        self.start_time = dt.strptime(time['dateTime'], '%Y-%m-%dT%H:%M:%SZ').strftime("%Y-%m-%d %H:%M:%S")
+        self.end_time = dt.strptime(time['endDateTime'], '%Y-%m-%dT%H:%M:%SZ').strftime("%Y-%m-%d %H:%M:%S")
         self.venue = json_data['gameData']['venue']['name']
         self.team_metrics = list(self._populate_metrics(json_data))
 
