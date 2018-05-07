@@ -14,11 +14,17 @@ for gn in range(1150,1151):
     try:
         G = Game(game_no=gn, game_type=gt,
                  season_year=gy)
+        conn = configure.connect_db('hockeydata')
+        c = conn.cursor()
+        configure.create_table(c)
+        
+        configure.update_table(G, 'events', conn)
+        
     except KeyError:
         print('Unable to process game')
 
-conn = configure.connect_db('hockeydata')
-c = conn.cursor()
-configure.create_table(c)
 
-configure.update_table(G, 'events', conn)
+
+
+
+
