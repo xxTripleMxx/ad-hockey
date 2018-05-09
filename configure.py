@@ -6,105 +6,126 @@ def connect_db(name):
     
     return conn
 
-def create_table(curs):
+def create_table(game_object, conn):
+
+    curs = conn.cursor()
+    game_id = game_object.game_id
     
-    events_tbl = ['CREATE TABLE IF NOT EXISTS events(', 
-        'event TEXT, game_id TEXT, period NUMERIC, time REAL, x_coord REAL, y_coord REAL, ',
-        'team TEXT, p1_type TEXT, p1_id NUMERIC, p2_type TEXT, p2_id NUMERIC, ',
-        'poi NUMERIC, distance REAL, angle NUMERIC, type TEXT, event_id NUMERIC,',
-        'length_seconds NUMERIC, end_time NUMERIC,',
-        'CONSTRAINT unique_event UNIQUE (game_id, event_id))']
+    def ordered_fields(field_str):
+        
+        fields = [x for x in str(field_str).split(",")]
+        fields = list(map(lambda x: x.replace('\n',"").strip().split(" ")[0], fields))
+        fields = list(filter(lambda x: len(x) > 1, fields))
+        return fields
+    
+    def populate(tbl_name, sql_tuple, curs, conn):
+
+        for n in range(0, len(container())):
+            sql_insert = ["'" + str(con_dict[field][n]) + "'" for field in sql_tuple[1]]
+            sql_update = [field + " = '" + str(con_dict[field][n]) + "'" for field in sql_tuple[1]]
+            try:
+                insert_start = "INSERT INTO " + tbl_name + " VALUES ("
+                sql_command = insert_start + ", ".join(sql_insert) + ")"
+                curs.execute(sql_command)
+                conn.commit()
+                
+                print(sql_command)
+
+            except sql.IntegrityError:
+                update_start = "UPDATE " + tbl_name + " "
+                update_set = 'SET ' + ", ".join(sql_update) + " "
+                update_where = "WHERE (" + " AND ".join(sql_update) + ")"
+                sql_command = update_start + update_set + update_where
+                curs.execute(sql_command)
+                conn.commit()
+                
+                print(sql_command)
+
+    # create game table and set primary key as game_id
+    etbl_create = 'CREATE TABLE IF NOT EXISTS events('
+    etbl_fields = '''event TEXT NOT NULL, game_id TEXT NOT NULL, period NUMERIC NOT NULL, 
+                    time REAL NOT NULL, x_coord REAL, y_coord REAL, 
+                    team TEXT, p1_type TEXT, p1_id NUMERIC, p2_type TEXT, p2_id NUMERIC, 
+                    poi NUMERIC, distance REAL, angle NUMERIC, type TEXT, event_id NUMERIC NOT NULL, 
+                    length_seconds NUMERIC, end_time NUMERIC, '''
+    etbl_primary = 'PRIMARY KEY (event_id), '
+    etbl_constraint = 'CONSTRAINT unique_event UNIQUE (game_id, event_id))'
+    
+    etbl = etbl_create + etbl_fields + etbl_primary + etbl_constraint
+    etbl_fields = ordered_fields(etbl_fields)
     
     # player id as primary key
-    players_tbl = ['CREATE TABLE IF NOT EXISTS players(',
-                   'name TEXT, position TEXT, team TEXT, number NUMERIC, ',
-                   'birthday TEXT, homecountry TEXT, height NUMERIC, ',
-                   'weight REAL, hand TEXT)']
+    ptbl_create = 'CREATE TABLE IF NOT EXISTS players('
+    ptbl_fields = '''name TEXT, team TEXT, number NUMERIC, birthday TEXT, 
+                     homecountry TEXT, height NUMERIC, weight REAL, hand TEXT, 
+                     id NUMERIC, '''
+    ptbl_primary = 'PRIMARY KEY (id), '
+    ptbl_constraint = 'CONSTRAINT unique_player UNIQUE (name, birthday))'
+    
+    ptbl = ptbl_create + ptbl_fields + ptbl_primary +  ptbl_constraint
+    ptbl_fields = ordered_fields(ptbl_fields)
     
     # create one to many with position player id to player table
-    player_position_tbl = ['CREATE TABLE IF NOT EXISTS positions(',
-                           'abbrev TEXT, position TEXT, player_id TEXT)']
+    pos_create = 'CREATE TABLE IF NOT EXISTS positions('
+    pos_fields = 'position TEXT, id TEXT, '
+    pos_foreign = 'FOREIGN KEY (id) REFERENCE players(id), '
+    pos_constraint = 'CONSTRAINT unique_position UNIQUE (position))'
+    
+    pos = pos_create + pos_fields + pos_foreign + pos_constraint
+    pos_fields = ordered_fields(pos_fields)            
     
     # set foreign key with player id and game id
-    skater_game_summary_tbl = ['CREATE TABLE IF NOT EXISTS skater_summary(',
-                               'player_id NUMERIC, toi NUMERIC, shots NUMERIC,',
-                               'assists NUMERIC, goals NUMERIC, hits NUMERIC,',
-                               'pp_goals NUMERIC, pp_assists NUMERIC,',
-                               'penalty_time NUMERIC fo_wins NUMERIC,',
-                               'fo_taken NUMERIC, takeaways NUMERIC giveaways NUMERIC,',
-                               'sh_goals NUMERIC, sh_assists NUMERIC, blocked NUMERIC,',
-                               'e_toi NUMERIC, pp_toi NUMERIC, sh_toi NUMERIC,',
-                               'game_id NUMERIC)']
+    sktr_create = 'CREATE TABLE IF NOT EXISTS skater_summary('
+    sktr_fields = '''id NUMERIC UNIQUE NOT NULL, toi NUMERIC, shots NUMERIC,
+                   assists NUMERIC, goals NUMERIC, hits NUMERIC,
+                   pp_goals NUMERIC, pp_assists NUMERIC,
+                   penalty_time NUMERIC fo_wins NUMERIC,
+                   fo_taken NUMERIC, takeaways NUMERIC giveaways NUMERIC,
+                   sh_goals NUMERIC, sh_assists NUMERIC, blocked NUMERIC, 
+                   e_toi NUMERIC, pp_toi NUMERIC, sh_toi NUMERIC, 
+                   game_id NUMERIC, '''
+    sktr_foreign = 'FOREIGN KEY (id) REFERENCES players(id), '
+    sktr_constraint = 'CONSTRAINT unique_skater UNIQUE (id, game_id))'
+    
+    sktr = sktr_create + sktr_fields + sktr_foreign + sktr_constraint
+    sktr_fields = ordered_fields(sktr_fields)
     
     # set foreign key with player id and game id
-    goalie_game_summary_tbl = ['CREATE TABLE IF NOT EXISTS goalie_summary(',
-                               'player_id NUMERIC, toi NUMERIC, shots NUMERIC, ',
-                               'saves NUMERIC, pp_saves NUMERIC, sh_saves NUMERIC,',
-                               'e_saves NUMERIC, sh_shots NUMERIC, e_shots NUMERIC,',
-                               'pp_shots NUMERIC)']
+    gl_create = 'CREATE TABLE IF NOT EXISTS goalie_summary('
+    gl_fields = '''id NUMERIC UNIQUE NOT NULL, toi NUMERIC, shots NUMERIC, 
+                   saves NUMERIC, pp_saves NUMERIC, sh_saves NUMERIC, 
+                   e_saves NUMERIC, sh_shots NUMERIC, e_shots NUMERIC,
+                   pp_shots NUMERIC, game_id NUMERIC, '''
+    gl_foreign = 'FOREIGN KEY (id) REFERENCES player(id), '
+    gl_constraint = 'CONSTRAINT unique_goalie UNIQUE (id, game_id))'
     
-    tbls_list = [events_tbl, players_tbl, player_position_tbl, 
-                 skater_game_summary_tbl, goalie_game_summary_tbl]
-    for tbl in tbls_list:
-        curs.execute("".join(tbl))
-
-def update_table(game_object, table, conn):
+    gl = gl_create + gl_fields + gl_foreign + gl_constraint
+    gl_fields = ordered_fields(gl_fields)
     
-    c = conn.cursor()
+    # table groups
+    tbls_dict = {'events': (etbl, etbl_fields), 
+                 'players':
+                 {'players':(ptbl, ptbl_fields),
+                  'positions': (pos, pos_fields),
+                  'goalie_summary': (gl, gl_fields), 
+                  'skater_summary': (sktr, sktr_fields)
+                 }
+                }
 
-    if table == 'events':
-        container = game_object.events
-        e = container.to_dict()
-        for n in range(0, len(container())):
-            "need to maintain order for feeding into sql syntax ... grumble grumble"
-            event = e['event'][n]
-            game_id = game_object.game_id
-            period = e['period'][n]
-            time = e['time'][n]
-            x_coord = e['x_coord'][n]
-            y_coord = e['y_coord'][n]
-            team = e['team'][n]
-            p1_type = e['p1_type'][n]
-            p1_id = e['p1_id'][n]
-            p2_type = e['p2_type'][n]
-            p2_id = e['p2_id'][n]
-            poi = e['poi'][n]
-            distance = e['distance'][n]
-            angle = e['angle'][n]
-            typee = e['type'][n]
-            event_id = e['event_id'][n]
-            length_seconds = e['length_seconds'][n]
-            end_time = e['end_time'][n]
-            
-            emap = map(lambda x: str(x), [event, game_id, period, time, x_coord, 
-                       y_coord, team, p1_type, p1_id, p2_type, p2_id, poi, 
-                       distance, angle, typee, event_id, length_seconds, end_time])
-            elist = ["'" + x + "'" for x in emap]
-            
-            try:
-                insert_start = "INSERT INTO " + table + " VALUES ("
-                sql_command = insert_start + ", ".join(elist) + ")"
-                c.execute(sql_command)
-
-            except:
-                updates = [k + " = " + "'" + str(v[n]) + "'" for k,v in e.items() if "name" not in k]
-                update_start = "UPDATE " + table + " "
-                update_set = 'SET ' + ", ".join(updates) + " "
-                update_where = "WHERE game_id = " + "'" + str(game_id) + "'" + " AND event_id = " + "'" + str(event_id) + "'"
-                sql_command = update_start + update_set + update_where
-                print(sql_command)
-                c.execute(sql_command)
-                
-            
-            print("Added line to TABLE " + table + ": \n", sql_command)
-            print("")
-            
-            conn.commit()
+    for k,v in tbls_dict.items():
         
-    elif table == 'players':
-        container = game_object.players
-        p = container.to_dict()
-        for n in range(0, len(container())):
-            team
+        if k == 'events':
+            container = game_object.events
+            curs.execute(v[0])
+            con_dict = container.to_dict()
+            con_dict['game_id'] = [game_id] * len(container())
+            populate(k, v, curs, conn)
             
-
+        elif k == 'players':
+            container = game_object.players
+            for tbl, vals in v.items():
+                curs.execute(vals[0])
+                con_dict = container.to_dict()
+                con_dict['game_id'] = [game_id] * len(container())
+                populate(tbl, vals, curs, conn)
+                

@@ -15,7 +15,7 @@ class Player(object):
         self.name = plyr_game_json[plyr_id]['person']['fullName']
         self.number = plyr_game_json[plyr_id]['jerseyNumber']
         self.birthday = plyr_career_json[plyr_id]['birthDate']
-        self.homecountry = plyr_career_json[plyr_id]['nationality'].lower()
+        self.homecountry = plyr_career_json[plyr_id]['nationality'].upper()
         self.height = re.findall(r'(?=\d*)(\d{1,2})',
                                  plyr_career_json[plyr_id]['height'])
         self.height = round(((int(self.height[0]) * 12) +
@@ -63,7 +63,7 @@ class Skater(Player):
         sh = json['shortHandedTimeOnIce'].split(':')
         sh = dt.timedelta(minutes=int(sh[0]), seconds=int(sh[1]))
         self.sh_toi = sh.total_seconds()
-        self.id = plyr_id
+        self.id = int(plyr_id.replace("ID", ""))
 
 
 class Goalie(Player):
@@ -85,4 +85,4 @@ class Goalie(Player):
         self.sh_shots = gl['shortHandedShotsAgainst']
         self.e_shots = gl['evenShotsAgainst']
         self.pp_shots = gl['powerPlayShotsAgainst']
-        self.id = plyr_id
+        self.id = int(plyr_id.replace("ID", ""))
