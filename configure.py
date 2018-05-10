@@ -1,4 +1,5 @@
 import sqlite3 as sql
+import Functionality as f
 
 def connect_db(name):
     
@@ -18,7 +19,7 @@ def create_table(game_object, conn):
         fields = list(filter(lambda x: len(x) > 1, fields))
         return fields
     
-    def populate(tbl_name, sql_tuple, curs, conn):
+    def populate(tbl_name, sql_tuple, curs, conn, con_dict):
 
         for n in range(0, len(container())):
             sql_insert = ["'" + str(con_dict[field][n]) + "'" for field in sql_tuple[1]]
@@ -68,7 +69,7 @@ def create_table(game_object, conn):
     # create one to many with position player id to player table
     pos_create = 'CREATE TABLE IF NOT EXISTS positions('
     pos_fields = 'position TEXT, id TEXT, '
-    pos_foreign = 'FOREIGN KEY (id) REFERENCE players(id), '
+    pos_foreign = 'FOREIGN KEY (id) REFERENCES players(id), '
     pos_constraint = 'CONSTRAINT unique_position UNIQUE (position))'
     
     pos = pos_create + pos_fields + pos_foreign + pos_constraint
@@ -119,13 +120,31 @@ def create_table(game_object, conn):
             curs.execute(v[0])
             con_dict = container.to_dict()
             con_dict['game_id'] = [game_id] * len(container())
-            populate(k, v, curs, conn)
+            populate(k, v, curs, conn, con_dict)
             
         elif k == 'players':
-            container = game_object.players
+            
             for tbl, vals in v.items():
                 curs.execute(vals[0])
-                con_dict = container.to_dict()
-                con_dict['game_id'] = [game_id] * len(container())
-                populate(tbl, vals, curs, conn)
-                
+                if tbl not in ['skater_summary', 'goalie_summary']:
+                    container = game_object.players
+                    con_dict = container.to_dict()
+                    con_dict['game_id'] = [game_id] * len(container())
+                    populate(tbl, vals, curs, conn, con_dict)
+                elif tbl == 'goalie_summary':
+                    container = game_object.players
+                    goalie_filt = container.to_dict(attributes='position', filts='G')['id']
+                    container = f.Container([obj for obj in container() if obj.id in goalie_filt])
+                    con_dict = container.to_dict()
+                    con_dict['game_id'] = [game_id] * len(container())
+                    populate(tbl, vals, curs, conn, con_dict)
+                    
+                elif tbl == 'skater_summary':
+                    container = game_object.players
+                    goalie_filt = container.to_dict(attributes='position', filts='G')['id']
+                    container = f.Container([obj for obj in container() if obj.id not in goalie_filt])
+                    con_dict = container.to_dict()
+                    con_dict['game_id'] = [game_id] * len(container())
+                    populate(tbl, vals, curs, conn, con_dict)
+                    
+                    
