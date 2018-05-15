@@ -192,6 +192,9 @@ class Game(object):
         for n in range(0, len(plays_list)):
             event = classify_event(plays_list, n)
             if isinstance(event, Event):
+                # add unique event_id combining event index and game no.
+                event.event_id = int(str(self.game_id) + str(n))
+                
                 event = man_advantage(event)
                 cnt += 1
                 yield event

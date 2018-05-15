@@ -9,7 +9,7 @@ class Event(object):
 
     def __init__(self, attribute_dictionary, json_data, ind):
         
-        self.event_id = ind
+        self.event_id = None
 
         for k, v in attribute_dictionary.items():
             setattr(self, k, v)

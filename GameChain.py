@@ -7,17 +7,20 @@ gy = "2017"
 # Game 18, 34, 196, 199, 209, 262, 309, 318, 394, 410, 458, 481, 516, 540, 639, 674,
 # Game 781, 792, 811, 856, 935, 941, 953, 1001, 1043, 1080, 1101, 1126, 1143
 # contain no play by play data
-### Throws tricode error which is first attempt at 
-for gn in range(1100,1101):
+### Throws tricode error which is first attempt at classification 
+
+for gn in range(1,1280):
     o = "0"*(4-len(str(gn)))
     gn = o + str(gn)
     try:
         G = Game(game_no=gn, game_type=gt,
                  season_year=gy)
+        conn = configure.connect_db('hockeydata')
+        configure.create_table(G, conn)
+        conn.close()
         
-    except KeyError:
+    except:
         print('Unable to process game')
+        pass
         
-    conn = configure.connect_db('hockeydata')
-    configure.create_table(G, conn)
-    conn.close()
+    
